@@ -1,3 +1,4 @@
+
 <p align="center">
   <a href="https://github.com/autotelic/action-wait-for-status-check/actions"><img alt="action-wait-for-status-check status" src="https://github.com/autotelic/action-wait-for-status-check/workflows/build-test/badge.svg"></a>
 </p>
