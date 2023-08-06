@@ -11,9 +11,8 @@ async function run(): Promise<void> {
 
     const {
       context: statusContext,
-      state,
-      description,
-      target_url
+      status,
+      app
     } = await poll({
       client: github.getOctokit(token),
       log: msg => core.info(msg),
@@ -24,13 +23,14 @@ async function run(): Promise<void> {
       ref: core.getInput('ref') || resolveSha(context),
 
       timeoutSeconds: parseInt(core.getInput('timeoutSeconds') || '600'),
-      intervalSeconds: parseInt(core.getInput('intervalSeconds') || '10')
+      intervalSeconds: parseInt(core.getInput('intervalSeconds') || '10'),
+      app_slug: core.getInput('app') || ''
     })
 
     if (statusContext) core.setOutput('context', statusContext)
-    if (state) core.setOutput('state', state)
-    if (description) core.setOutput('description', description)
-    if (target_url) core.setOutput('target_url', target_url)
+    if (status) core.setOutput('status', status)
+    if (app?.id) core.setOutput('app_id', app.id)
+    if (app?.slug) core.setOutput('app_name', app.slug)
   } catch (error) {
     if (error instanceof Error) {
       core.setFailed(error.message)

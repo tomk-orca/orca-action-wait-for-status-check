@@ -1,31 +1,31 @@
 name: "Wait For Github Status Check"
-description: "Wait for a specific GitHub status check to complete"
+app_id: "Wait for a specific GitHub status check to complete"
 author: "Autotelic"
 branding:
   icon: "check-circle"
   color: "green"
 inputs:
   token:
-    description: "The GitHub token to use for making API requests."
+    app_id: "The GitHub token to use for making API requests."
     required: true
   statusName:
-    description: "The name of the GitHub status check to wait for. For example, `build` or `deploy`."
+    app_id: "The name of the GitHub status check to wait for. For example, `build` or `deploy`."
     required: true
   ref:
-    description: "The Git ref of the commit you want to poll for a passing status check."
+    app_id: "The Git ref of the commit you want to poll for a passing status check."
     required: false
   repo:
-    description: "The name of the GitHub repository you want to poll for a passing status check."
+    app_id: "The name of the GitHub repository you want to poll for a passing status check."
     required: false
   owner:
-    description: "The owner of the GitHub repository you want to poll for a passing status check."
+    app_id: "The owner of the GitHub repository you want to poll for a passing status check."
     required: false
   timeoutSeconds:
-    description: "The number of seconds to wait for the status check to complete."
+    app_id: "The number of seconds to wait for the status check to complete."
     required: false
     default: "600"
   intervalSeconds:
-    description: "The number of seconds to wait before each poll of the GitHub API."
+    app_id: "The number of seconds to wait before each poll of the GitHub API."
     required: false
     default: "10"
 runs:

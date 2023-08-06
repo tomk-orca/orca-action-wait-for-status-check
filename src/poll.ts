@@ -1,5 +1,11 @@
 import { GitHub } from '@actions/github/lib/utils'
 import { wait } from './wait'
+import { ChecksStatus } from './consts'
+
+const NOT_COMPLETED_CHECKS_STATUSES: string[] = [
+  ChecksStatus.QUEUED,
+  ChecksStatus.IN_PROGRESS
+]
 
 export interface Options {
   client: InstanceType<typeof GitHub>
@@ -11,16 +17,23 @@ export interface Options {
   owner: string
   repo: string
   ref: string
+  app_slug: string
 }
 
-interface CommitStatusValues {
+interface app {
+  id: number
+  slug: string
+}
+interface CheckRunsStatusValues {
   context?: string
-  state?: string
-  description?: string | null
-  target_url?: string
+  status?: string | null
+  name?: string | null
+  app?: app | undefined | null
 }
 
-export const poll = async (options: Options): Promise<CommitStatusValues> => {
+export const poll = async (
+  options: Options
+): Promise<CheckRunsStatusValues> => {
   const {
     client,
     log,
@@ -29,39 +42,46 @@ export const poll = async (options: Options): Promise<CommitStatusValues> => {
     intervalSeconds,
     owner,
     repo,
-    ref
+    ref,
+    app_slug
   } = options
 
   let now = new Date().getTime()
   const deadline = now + timeoutSeconds * 1000
 
   while (now <= deadline) {
-    log(`Retrieving commit statuses on ${owner}/${repo}@${ref}...`)
+    log(`Retrieving commit statuses on test:: ${owner}/${repo}@${ref}...`)
 
-    // https://docs.github.com/en/rest/reference/commits#get-the-combined-status-for-a-specific-reference
+    // https://docs.github.com/en/free-pro-team@latest/rest/checks/runs?apiVersion=2022-11-28#list-check-runs-for-a-git-reference
     const {
-      data: { statuses }
-    } = await client.rest.repos.getCombinedStatusForRef({
+      data: { total_count, check_runs }
+    } = await client.rest.checks.listForRef({
       owner,
       repo,
       ref
     })
 
-    log(`Retrieved ${statuses.length} commit statuses`)
-
-    const completedCommitStatus = statuses.find(
-      commitStatus =>
-        commitStatus.context === statusName && commitStatus.state !== 'pending'
+    log(`Retrieved ${total_count} commit statuses app name: ${app_slug}`)
+    // find the first completed check run with the given name and the app name
+    const completedCheckRuns = check_runs.find(
+      check_run =>
+        check_run.app &&
+        check_run.name === statusName &&
+        check_run.app.slug === app_slug &&
+        !NOT_COMPLETED_CHECKS_STATUSES.includes(check_run.status)
     )
-    if (completedCommitStatus) {
+    if (completedCheckRuns) {
       log(
-        `Found a completed commit status with id ${completedCommitStatus.id} and conclusion ${completedCommitStatus.state}`
+        `Found a completed commit status with id ${completedCheckRuns.id} and conclusion ${completedCheckRuns.conclusion}`
       )
       return {
-        context: completedCommitStatus.context,
-        state: completedCommitStatus.state,
-        description: completedCommitStatus.description,
-        target_url: completedCommitStatus.target_url
+        context: completedCheckRuns.name,
+        status: completedCheckRuns.status,
+        name: completedCheckRuns.name,
+        app: {
+          id: completedCheckRuns.app!.id,
+          slug: completedCheckRuns.app!.slug || ''
+        }
       }
     }
 
@@ -77,6 +97,6 @@ export const poll = async (options: Options): Promise<CommitStatusValues> => {
     `No completed commit status named ${statusName} after ${timeoutSeconds} seconds, exiting with conclusion 'timed_out'`
   )
   return {
-    state: 'timed_out'
+    status: 'timed_out'
   }
 }

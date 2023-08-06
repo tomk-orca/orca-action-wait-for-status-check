@@ -1,35 +1,39 @@
 import { poll } from '../src/poll'
 import { jest, expect, test } from '@jest/globals'
-
+import { ChecksStatus } from '../src/consts'
 const client = {
   rest: {
-    repos: {
-      getCombinedStatusForRef: jest.fn<ReturnType<any>>()
+    checks: {
+      listForRef: jest.fn<ReturnType<any>>()
     }
   }
 }
 
-const run = () =>
+const run = async () =>
   poll({
     client: client as any,
     log: () => {},
-    statusName: 'testContext',
+    statusName: 'testApp check',
     owner: 'testOrg',
     repo: 'testRepo',
     ref: '123456789abcdefg',
     timeoutSeconds: 3,
-    intervalSeconds: 0.1
+    intervalSeconds: 0.1,
+    app_slug: 'testApp'
   })
 
 test('Returns details of a matching status check', async () => {
-  client.rest.repos.getCombinedStatusForRef.mockResolvedValue({
+  client.rest.checks.listForRef.mockResolvedValue({
     data: {
-      statuses: [
+      check_runs: [
         {
-          state: 'success',
-          description: 'Build has completed successfully',
-          target_url: 'https://ci.example.com/1000/output',
-          context: 'testContext'
+          status: ChecksStatus.COMPLETED,
+          context: 'testApp check',
+          name: 'testApp check',
+          app: {
+            id: 123456,
+            slug: 'testApp'
+          }
         }
       ]
     }
@@ -38,12 +42,15 @@ test('Returns details of a matching status check', async () => {
   const result = await run()
 
   expect(result).toEqual({
-    context: 'testContext',
-    description: 'Build has completed successfully',
-    state: 'success',
-    target_url: 'https://ci.example.com/1000/output'
+    context: 'testApp check',
+    status: ChecksStatus.COMPLETED,
+    name: 'testApp check',
+    app: {
+      id: 123456,
+      slug: 'testApp'
+    }
   })
-  expect(client.rest.repos.getCombinedStatusForRef).toHaveBeenCalledWith({
+  expect(client.rest.checks.listForRef).toHaveBeenCalledWith({
     owner: 'testOrg',
     repo: 'testRepo',
     ref: '123456789abcdefg'
@@ -51,45 +58,33 @@ test('Returns details of a matching status check', async () => {
 })
 
 test('polls until matching check is found', async () => {
-  client.rest.repos.getCombinedStatusForRef
+  client.rest.checks.listForRef
     .mockResolvedValueOnce({
       data: {
-        statuses: [
+        check_runs: [
           {
-            state: 'pending',
-            description: 'Starting Other Context',
-            target_url: 'https://ci.example.com/1000/output',
-            context: 'other Context'
+            status: ChecksStatus.IN_PROGRESS,
+            context: 'testApp check',
+            name: 'testApp check',
+            app: {
+              id: 123456,
+              slug: 'testApp'
+            }
           }
         ]
       }
     })
     .mockResolvedValueOnce({
       data: {
-        statuses: [
+        check_runs: [
           {
-            state: 'success',
-            description: 'Other Context has completed successfully',
-            target_url: 'https://ci.example.com/1000/output',
-            context: 'other Context'
-          }
-        ]
-      }
-    })
-    .mockResolvedValueOnce({
-      data: {
-        statuses: [
-          {
-            state: 'success',
-            description: 'Other Context has completed successfully',
-            target_url: 'https://ci.example.com/1000/output',
-            context: 'other Context'
-          },
-          {
-            state: 'success',
-            description: 'Build has completed successfully',
-            target_url: 'https://ci.example.com/3000/output',
-            context: 'testContext'
+            status: ChecksStatus.COMPLETED,
+            context: 'testApp check',
+            name: 'testApp check',
+            app: {
+              id: 123456,
+              slug: 'testApp'
+            }
           }
         ]
       }
@@ -98,28 +93,34 @@ test('polls until matching check is found', async () => {
   const result = await run()
 
   expect(result).toEqual({
-    context: 'testContext',
-    description: 'Build has completed successfully',
-    state: 'success',
-    target_url: 'https://ci.example.com/3000/output'
+    status: ChecksStatus.COMPLETED,
+    context: 'testApp check',
+    name: 'testApp check',
+    app: {
+      id: 123456,
+      slug: 'testApp'
+    }
   })
-  expect(client.rest.repos.getCombinedStatusForRef).toHaveBeenCalledTimes(3)
+  expect(client.rest.checks.listForRef).toHaveBeenCalledTimes(2)
 })
 
 test(`returns a state of 'timed_out' if a matching status check is not found by the timeoutSeconds`, async () => {
-  client.rest.repos.getCombinedStatusForRef.mockResolvedValue({
+  client.rest.checks.listForRef.mockResolvedValue({
     data: {
-      statuses: [
+      check_runs: [
         {
-          state: 'success',
-          description: 'Other Context has completed successfully',
-          target_url: 'https://ci.example.com/1000/output',
-          context: 'other Context'
+          status: ChecksStatus.IN_PROGRESS,
+          context: 'testApp check',
+          name: 'testApp check',
+          app: {
+            id: 123456,
+            slug: 'testApp'
+          }
         }
       ]
     }
   })
 
   const result = await run()
-  expect(result).toEqual({ state: 'timed_out' })
+  expect(result).toEqual({ status: 'timed_out' })
 })

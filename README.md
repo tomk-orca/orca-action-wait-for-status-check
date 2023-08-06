@@ -33,8 +33,8 @@ This action retrieves Commit status checks only using the [GitHub Repository API
         run: |
          echo ${{ steps.wait-for-status.outputs.context }}
          echo ${{ steps.wait-for-status.outputs.state }}
-         echo ${{ steps.wait-for-status.outputs.description }}
-         echo ${{ steps.wait-for-status.outputs.target_url }}  
+         echo ${{ steps.wait-for-status.outputs.app_id }}
+         echo ${{ steps.wait-for-status.outputs.app_name }}  
 ```
 
 ## Inputs
@@ -108,13 +108,13 @@ All available details are listed in the GitHub API documentation [here](https://
 
 - The context or "name" of the commit status found. This should exactly match the `statusName` input parameter supplied.
 
-### description
+### app_id
 
-- The description attached to the commit status found.
+- The app_id attached to the commit status found.
 
-### target_url
+### app_name
 
-- The target_url attached to the commit status found.
+- The app_name attached to the commit status found.
 
 ## Development
 

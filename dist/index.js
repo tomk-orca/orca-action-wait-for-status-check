@@ -1,6 +1,36 @@
 require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
+/***/ 4831:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ChecksStatus = void 0;
+// eslint-disable-next-line no-shadow
+var ChecksStatus;
+(function (ChecksStatus) {
+    ChecksStatus["QUEUED"] = "queued";
+    ChecksStatus["IN_PROGRESS"] = "in_progress";
+    ChecksStatus["COMPLETED"] = "completed";
+})(ChecksStatus = exports.ChecksStatus || (exports.ChecksStatus = {}));
+// eslint-disable-next-line no-shadow,@typescript-eslint/no-unused-vars
+var ChecksConclusion;
+(function (ChecksConclusion) {
+    ChecksConclusion["ACTION_REQUIRED"] = "action_required";
+    ChecksConclusion["CANCELLED"] = "cancelled";
+    ChecksConclusion["FAILURE"] = "failure";
+    ChecksConclusion["NEUTRAL"] = "neutral";
+    ChecksConclusion["SUCCESS"] = "success";
+    ChecksConclusion["SKIPPED"] = "skipped";
+    ChecksConclusion["STALE"] = "stale";
+    ChecksConclusion["TIMED_OUT"] = "timed_out";
+})(ChecksConclusion || (ChecksConclusion = {}));
+
+
+/***/ }),
+
 /***/ 3109:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -48,7 +78,7 @@ function run() {
         try {
             const context = github.context;
             const token = core.getInput('token', { required: true });
-            const { context: statusContext, state, description, target_url } = yield (0, poll_1.poll)({
+            const { context: statusContext, status, app } = yield (0, poll_1.poll)({
                 client: github.getOctokit(token),
                 log: msg => core.info(msg),
                 statusName: core.getInput('statusName', { required: true }),
@@ -56,16 +86,17 @@ function run() {
                 repo: core.getInput('repo') || context.repo.repo,
                 ref: core.getInput('ref') || (0, resolve_sha_1.resolveSha)(context),
                 timeoutSeconds: parseInt(core.getInput('timeoutSeconds') || '600'),
-                intervalSeconds: parseInt(core.getInput('intervalSeconds') || '10')
+                intervalSeconds: parseInt(core.getInput('intervalSeconds') || '10'),
+                app_slug: core.getInput('app') || ''
             });
             if (statusContext)
                 core.setOutput('context', statusContext);
-            if (state)
-                core.setOutput('state', state);
-            if (description)
-                core.setOutput('description', description);
-            if (target_url)
-                core.setOutput('target_url', target_url);
+            if (status)
+                core.setOutput('status', status);
+            if (app === null || app === void 0 ? void 0 : app.id)
+                core.setOutput('app_id', app.id);
+            if (app === null || app === void 0 ? void 0 : app.slug)
+                core.setOutput('app_name', app.slug);
         }
         catch (error) {
             if (error instanceof Error) {
@@ -99,27 +130,39 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.poll = void 0;
 const wait_1 = __nccwpck_require__(5817);
+const consts_1 = __nccwpck_require__(4831);
+const NOT_COMPLETED_CHECKS_STATUSES = [
+    consts_1.ChecksStatus.QUEUED,
+    consts_1.ChecksStatus.IN_PROGRESS
+];
 const poll = (options) => __awaiter(void 0, void 0, void 0, function* () {
-    const { client, log, statusName, timeoutSeconds, intervalSeconds, owner, repo, ref } = options;
+    const { client, log, statusName, timeoutSeconds, intervalSeconds, owner, repo, ref, app_slug } = options;
     let now = new Date().getTime();
     const deadline = now + timeoutSeconds * 1000;
     while (now <= deadline) {
-        log(`Retrieving commit statuses on ${owner}/${repo}@${ref}...`);
-        // https://docs.github.com/en/rest/reference/commits#get-the-combined-status-for-a-specific-reference
-        const { data: { statuses } } = yield client.rest.repos.getCombinedStatusForRef({
+        log(`Retrieving commit statuses on test:: ${owner}/${repo}@${ref}...`);
+        // https://docs.github.com/en/free-pro-team@latest/rest/checks/runs?apiVersion=2022-11-28#list-check-runs-for-a-git-reference
+        const { data: { total_count, check_runs } } = yield client.rest.checks.listForRef({
             owner,
             repo,
             ref
         });
-        log(`Retrieved ${statuses.length} commit statuses`);
-        const completedCommitStatus = statuses.find(commitStatus => commitStatus.context === statusName && commitStatus.state !== 'pending');
-        if (completedCommitStatus) {
-            log(`Found a completed commit status with id ${completedCommitStatus.id} and conclusion ${completedCommitStatus.state}`);
+        log(`Retrieved ${total_count} commit statuses app name: ${app_slug}`);
+        // find the first completed check run with the given name and the app name
+        const completedCheckRuns = check_runs.find(check_run => check_run.app &&
+            check_run.name === statusName &&
+            check_run.app.slug === app_slug &&
+            !NOT_COMPLETED_CHECKS_STATUSES.includes(check_run.status));
+        if (completedCheckRuns) {
+            log(`Found a completed commit status with id ${completedCheckRuns.id} and conclusion ${completedCheckRuns.conclusion}`);
             return {
-                context: completedCommitStatus.context,
-                state: completedCommitStatus.state,
-                description: completedCommitStatus.description,
-                target_url: completedCommitStatus.target_url
+                context: completedCheckRuns.name,
+                status: completedCheckRuns.status,
+                name: completedCheckRuns.name,
+                app: {
+                    id: completedCheckRuns.app.id,
+                    slug: completedCheckRuns.app.slug || ''
+                }
             };
         }
         log(`No completed commit status named ${statusName}, waiting for ${intervalSeconds} seconds...`);
@@ -128,7 +171,7 @@ const poll = (options) => __awaiter(void 0, void 0, void 0, function* () {
     }
     log(`No completed commit status named ${statusName} after ${timeoutSeconds} seconds, exiting with conclusion 'timed_out'`);
     return {
-        state: 'timed_out'
+        status: 'timed_out'
     };
 });
 exports.poll = poll;
