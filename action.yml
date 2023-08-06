@@ -28,9 +28,9 @@ inputs:
     app_id: "The number of seconds to wait before each poll of the GitHub API."
     required: false
     default: "10"
-    app:
-        app_id: "The GitHub App to use for making API requests."
-        required: true
+  app:
+      app_id: "The GitHub App to use for making API requests."
+      required: true
 runs:
   using: "node16"
   main: "dist/index.js"
